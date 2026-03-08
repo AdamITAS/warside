@@ -3,134 +3,771 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WarSide</title>
+  <title>WARSIDE — Scegli da che parte stai</title>
   <script src="/socket.io/socket.io.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --red: #e63946;
+      --red-dim: #7a1a1f;
+      --blue: #457b9d;
+      --blue-dim: #1d3a4f;
+      --gold: #f4a261;
+      --dark: #080808;
+      --dark2: #0f0f0f;
+      --dark3: #161616;
+      --border: rgba(255,255,255,0.06);
+      --text: #e8e8e8;
+      --muted: #555;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: white; min-height: 100vh; }
-    
-    header { text-align: center; padding: 40px 20px 20px; }
-    header h1 { font-size: 3rem; font-weight: 900; letter-spacing: 4px; }
-    header p { color: #888; margin-top: 8px; }
 
-    .conflicts { display: flex; flex-direction: column; gap: 40px; padding: 40px 20px; max-width: 900px; margin: 0 auto; }
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-    .conflict-card { background: #111; border-radius: 16px; overflow: hidden; border: 1px solid #222; }
-    .conflict-title { text-align: center; padding: 20px; font-size: 1.2rem; font-weight: 700; border-bottom: 1px solid #222; }
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
 
-    .sides { display: flex; height: 120px; }
-    .side { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; cursor: pointer; transition: all 0.3s; }
-    .side-a { background: #1a0000; color: #ff4444; }
-    .side-b { background: #001a00; color: #44ff44; }
-    .side-a:hover { background: #ff4444; color: white; }
-    .side-b:hover { background: #44ff44; color: black; }
+    /* ---- HERO ---- */
+    .hero {
+      position: relative;
+      text-align: center;
+      padding: 80px 20px 60px;
+      overflow: hidden;
+    }
 
-    .bar-container { height: 8px; display: flex; }
-    .bar-a { background: #ff4444; transition: width 0.5s; }
-    .bar-b { background: #44ff44; transition: width 0.5s; }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -100px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(230,57,70,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
 
-    .stats { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 0.85rem; color: #888; }
+    .hero-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+      animation: fadeUp 0.8s ease both;
+    }
 
-    .vote-form { padding: 20px; border-top: 1px solid #222; display: none; flex-direction: column; gap: 10px; }
+    .hero h1 {
+      font-family: 'Black Ops One', cursive;
+      font-size: clamp(4rem, 12vw, 9rem);
+      letter-spacing: 8px;
+      line-height: 0.9;
+      color: #fff;
+      animation: fadeUp 0.8s 0.1s ease both;
+      position: relative;
+    }
+
+    .hero h1 span {
+      color: var(--red);
+    }
+
+    .hero-sub {
+      margin-top: 20px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      animation: fadeUp 0.8s 0.2s ease both;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(230,57,70,0.1);
+      border: 1px solid rgba(230,57,70,0.3);
+      border-radius: 100px;
+      padding: 6px 16px;
+      margin-top: 24px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--red);
+      animation: fadeUp 0.8s 0.3s ease both;
+    }
+
+    .live-dot {
+      width: 6px; height: 6px;
+      background: var(--red);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    /* ---- DIVIDER ---- */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0 40px;
+    }
+
+    /* ---- CONFLICTS ---- */
+    .conflicts {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 60px;
+    }
+
+    /* ---- CONFLICT CARD ---- */
+    .conflict-card {
+      position: relative;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .conflict-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .conflict-title {
+      font-family: 'Black Ops One', cursive;
+      font-size: clamp(1.6rem, 4vw, 2.6rem);
+      letter-spacing: 3px;
+      margin-bottom: 30px;
+      color: #fff;
+    }
+
+    /* BATTLE AREA */
+    .battle {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0;
+      height: 200px;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .side-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative;
+      overflow: hidden;
+      border: none;
+      background: none;
+      gap: 8px;
+    }
+
+    .side-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .side-btn-a { background: rgba(230,57,70,0.08); }
+    .side-btn-a::before { background: linear-gradient(135deg, rgba(230,57,70,0.3), rgba(230,57,70,0.05)); }
+    .side-btn-b { background: rgba(69,123,157,0.08); }
+    .side-btn-b::before { background: linear-gradient(225deg, rgba(69,123,157,0.3), rgba(69,123,157,0.05)); }
+
+    .side-btn:hover::before { opacity: 1; }
+    .side-btn:hover { transform: scale(1.02); }
+    .side-btn.selected-a { background: rgba(230,57,70,0.18) !important; }
+    .side-btn.selected-b { background: rgba(69,123,157,0.18) !important; }
+
+    .side-flag {
+      font-size: 3rem;
+      line-height: 1;
+    }
+
+    .side-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(1.2rem, 3vw, 2rem);
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .side-hint {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.3s;
+      color: var(--muted);
+    }
+
+    .side-btn:hover .side-hint { opacity: 1; }
+
+    .vs-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      background: var(--dark);
+      position: relative;
+      z-index: 2;
+    }
+
+    .vs-text {
+      font-family: 'Black Ops One', cursive;
+      font-size: 1rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+    }
+
+    /* PROGRESS BAR */
+    .progress-wrap {
+      margin-top: 1px;
+      height: 6px;
+      display: flex;
+      border-radius: 0 0 4px 4px;
+      overflow: hidden;
+    }
+
+    .prog-a {
+      background: var(--red);
+      transition: width 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative;
+    }
+
+    .prog-a::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 20px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2));
+    }
+
+    .prog-b {
+      background: var(--blue);
+      transition: width 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    /* STATS ROW */
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stat-perc {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-perc.a { color: var(--red); }
+    .stat-perc.b { color: var(--blue); }
+
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .stat-votes {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .stat-total {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* VOTE FORM */
+    .vote-form {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 24px;
+      background: var(--dark3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-top: 16px;
+      animation: slideDown 0.3s ease;
+    }
+
     .vote-form.active { display: flex; }
-    .vote-form input, .vote-form textarea { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px; color: white; font-size: 0.9rem; }
-    .vote-form textarea { height: 80px; resize: none; }
-    .vote-form button { background: #ff4444; border: none; border-radius: 8px; padding: 12px; color: white; font-weight: 700; cursor: pointer; font-size: 1rem; }
-    .vote-form button:hover { opacity: 0.8; }
 
-    .messages { padding: 20px; border-top: 1px solid #222; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .msg { background: #1a1a1a; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; border-left: 3px solid #333; }
-    .msg.side-a { border-left-color: #ff4444; }
-    .msg.side-b { border-left-color: #44ff44; }
-    .msg .meta { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    textarea.form-input {
+      height: 90px;
+      resize: none;
+    }
+
+    .form-selected-side {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .form-selected-side.a {
+      background: rgba(230,57,70,0.15);
+      color: var(--red);
+      border: 1px solid rgba(230,57,70,0.3);
+    }
+
+    .form-selected-side.b {
+      background: rgba(69,123,157,0.15);
+      color: var(--blue);
+      border: 1px solid rgba(69,123,157,0.3);
+    }
+
+    .submit-btn {
+      border: none;
+      border-radius: 3px;
+      padding: 14px 24px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .submit-btn.a {
+      background: var(--red);
+      color: white;
+    }
+
+    .submit-btn.b {
+      background: var(--blue);
+      color: white;
+    }
+
+    .submit-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .submit-btn:active { transform: translateY(0); }
+
+    /* MESSAGES */
+    .messages-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0 12px;
+    }
+
+    .messages-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .messages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .messages-list::-webkit-scrollbar { width: 3px; }
+    .messages-list::-webkit-scrollbar-track { background: transparent; }
+    .messages-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .msg {
+      padding: 12px 16px;
+      background: var(--dark3);
+      border-radius: 3px;
+      border-left: 2px solid transparent;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .msg.a { border-left-color: var(--red); }
+    .msg.b { border-left-color: var(--blue); }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .msg-user {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .msg-user.a { color: var(--red); }
+    .msg-user.b { color: var(--blue); }
+
+    .msg-country {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .msg-side-tag {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 2px;
+      margin-left: auto;
+    }
+
+    .msg-side-tag.a { background: rgba(230,57,70,0.1); color: var(--red); }
+    .msg-side-tag.b { background: rgba(69,123,157,0.1); color: var(--blue); }
+
+    .msg-text {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #aaa;
+    }
+
+    /* CARD SEPARATOR */
+    .card-line {
+      height: 1px;
+      background: var(--border);
+      margin: 0;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 60px 20px;
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+
+    footer p {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* GLOBAL STATS BAR */
+    .global-bar {
+      background: var(--dark2);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .global-stat strong {
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* New vote flash */
+    @keyframes newVoteFlash {
+      0% { background: rgba(244,162,97,0.15); }
+      100% { background: var(--dark3); }
+    }
+
+    .msg.new { animation: newVoteFlash 1s ease, fadeUp 0.4s ease; }
+
+    /* SCROLLBAR GLOBAL */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--dark); }
+    ::-webkit-scrollbar-thumb { background: #222; }
+
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+      .global-bar { flex-wrap: wrap; gap: 16px; padding: 10px 20px; }
+      .battle { height: 160px; }
+      .side-flag { font-size: 2rem; }
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>⚔️ WARSIDE</h1>
-  <p>Scegli da che parte stai. In tempo reale.</p>
+<div class="global-bar">
+  <div class="global-stat"><strong id="g-users">0</strong> online ora</div>
+  <div class="global-stat"><strong id="g-votes">0</strong> voti totali</div>
+  <div class="global-stat"><strong id="g-conflicts">0</strong> conflitti attivi</div>
+</div>
+
+<header class="hero">
+  <div class="hero-eyebrow">La tua voce conta</div>
+  <h1>WAR<span>SIDE</span></h1>
+  <p class="hero-sub">Scegli da che parte stai — in tempo reale</p>
+  <div class="live-badge"><span class="live-dot"></span> Live</div>
 </header>
 
+<div class="divider"></div>
+
 <div class="conflicts" id="conflicts"></div>
+
+<footer>
+  <p>Warside &mdash; Ogni opinione merita di essere ascoltata</p>
+</footer>
 
 <script>
   const socket = io();
   let selectedSide = {};
   let conflicts = {};
+  let totalVotes = 0;
 
   socket.on('conflicts', (data) => {
     conflicts = data;
+    updateGlobalStats();
     renderAll();
   });
 
   socket.on('update', ({ conflictId, data }) => {
     conflicts[conflictId] = data;
-    renderConflict(conflictId);
+    updateGlobalStats();
+    updateConflict(conflictId);
   });
 
-  function renderAll() {
-    Object.keys(conflicts).forEach(renderConflict);
+  function updateGlobalStats() {
+    let votes = 0;
+    let count = 0;
+    Object.values(conflicts).forEach(c => {
+      votes += c.votes.a + c.votes.b;
+      count++;
+    });
+    document.getElementById('g-votes').textContent = votes.toLocaleString('it-IT');
+    document.getElementById('g-conflicts').textContent = count;
   }
 
-  function renderConflict(id) {
+  function renderAll() {
+    Object.keys(conflicts).forEach((id, i) => {
+      renderConflict(id, i);
+    });
+  }
+
+  function renderConflict(id, index = 0) {
     const c = conflicts[id];
     const total = c.votes.a + c.votes.b || 1;
     const percA = Math.round((c.votes.a / total) * 100);
     const percB = 100 - percA;
+    const sel = selectedSide[id];
 
     let el = document.getElementById(`conflict-${id}`);
     if (!el) {
       el = document.createElement('div');
       el.className = 'conflict-card';
       el.id = `conflict-${id}`;
+      el.style.animationDelay = `${index * 0.15}s`;
       document.getElementById('conflicts').appendChild(el);
     }
 
-    const msgs = c.messages.slice(-20).reverse().map(m => `
-      <div class="msg side-${m.side}">
-        <div class="meta">@${m.username} · ${m.country || ''}</div>
-        ${m.message}
+    const msgs = c.messages.slice(-30).reverse();
+    const msgsHTML = msgs.map((m, i) => `
+      <div class="msg ${m.side}${i === 0 ? ' new' : ''}">
+        <div class="msg-meta">
+          <span class="msg-user ${m.side}">@${escHtml(m.username)}</span>
+          ${m.country ? `<span class="msg-country">${escHtml(m.country)}</span>` : ''}
+          <span class="msg-side-tag ${m.side}">${m.side === 'a' ? escHtml(c.sides.a) : escHtml(c.sides.b)}</span>
+        </div>
+        <div class="msg-text">${escHtml(m.message)}</div>
       </div>
     `).join('');
 
-    const formVisible = selectedSide[id] ? 'active' : '';
-    const btnColor = selectedSide[id] === 'a' ? '#ff4444' : '#44ff44';
-
     el.innerHTML = `
-      <div class="conflict-title">${c.title}</div>
-      <div class="sides">
-        <div class="side side-a" onclick="selectSide('${id}', 'a')">${c.sides.a}</div>
-        <div class="side side-b" onclick="selectSide('${id}', 'b')">${c.sides.b}</div>
+      <div class="conflict-label">Conflitto attivo</div>
+      <div class="conflict-title">${escHtml(c.title)}</div>
+
+      <div class="battle">
+        <button class="side-btn side-btn-a ${sel === 'a' ? 'selected-a' : ''}" onclick="selectSide('${id}', 'a')">
+          <div class="side-flag">${c.flags ? c.flags.a : '🔴'}</div>
+          <div class="side-name">${escHtml(c.sides.a)}</div>
+          <div class="side-hint">Sto con loro</div>
+        </button>
+        <div class="vs-divider"><div class="vs-text">VS</div></div>
+        <button class="side-btn side-btn-b ${sel === 'b' ? 'selected-b' : ''}" onclick="selectSide('${id}', 'b')">
+          <div class="side-flag">${c.flags ? c.flags.b : '🔵'}</div>
+          <div class="side-name">${escHtml(c.sides.b)}</div>
+          <div class="side-hint">Sto con loro</div>
+        </button>
       </div>
-      <div class="bar-container">
-        <div class="bar-a" style="width:${percA}%"></div>
-        <div class="bar-b" style="width:${percB}%"></div>
+
+      <div class="progress-wrap">
+        <div class="prog-a" style="width:${percA}%"></div>
+        <div class="prog-b" style="width:${percB}%"></div>
       </div>
-      <div class="stats">
-        <span>🔴 ${c.sides.a}: ${percA}% (${c.votes.a} voti)</span>
-        <span>🟢 ${c.sides.b}: ${percB}% (${c.votes.b} voti)</span>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-perc a">${percA}%</div>
+          <div class="stat-info">
+            <span class="stat-name">${escHtml(c.sides.a)}</span>
+            <span class="stat-votes">${c.votes.a.toLocaleString('it-IT')} voti</span>
+          </div>
+        </div>
+        <div class="stat-total">${(c.votes.a + c.votes.b).toLocaleString('it-IT')} totali</div>
+        <div class="stat" style="flex-direction:row-reverse; text-align:right">
+          <div class="stat-perc b">${percB}%</div>
+          <div class="stat-info">
+            <span class="stat-name">${escHtml(c.sides.b)}</span>
+            <span class="stat-votes">${c.votes.b.toLocaleString('it-IT')} voti</span>
+          </div>
+        </div>
       </div>
-      <div class="vote-form ${formVisible}" id="form-${id}">
-        <input id="username-${id}" placeholder="Il tuo username TikTok (es. @mario)" maxlength="50" />
-        <input id="country-${id}" placeholder="Il tuo paese (es. Italia)" maxlength="50" />
-        <textarea id="message-${id}" placeholder="Perché stai da questa parte?"></textarea>
-        <button style="background:${btnColor}" onclick="submitVote('${id}')">Invia il tuo voto</button>
+
+      ${sel ? `
+      <div class="vote-form active" id="form-${id}">
+        <div class="form-selected-side ${sel}">
+          Stai votando per: ${sel === 'a' ? escHtml(c.sides.a) : escHtml(c.sides.b)}
+        </div>
+        <div class="form-row">
+          <div>
+            <div class="form-label">Username TikTok</div>
+            <input class="form-input" id="username-${id}" placeholder="@tuonome" maxlength="50" />
+          </div>
+          <div>
+            <div class="form-label">Paese</div>
+            <input class="form-input" id="country-${id}" placeholder="es. Italia" maxlength="50" />
+          </div>
+        </div>
+        <div>
+          <div class="form-label">Perché stai da questa parte?</div>
+          <textarea class="form-input" id="message-${id}" placeholder="Spiega il tuo punto di vista..."></textarea>
+        </div>
+        <button class="submit-btn ${sel}" onclick="submitVote('${id}')">
+          Invia il tuo voto →
+        </button>
       </div>
-      <div class="messages">${msgs}</div>
+      ` : ''}
+
+      ${msgs.length > 0 ? `
+        <div class="card-line"></div>
+        <div class="messages-header">
+          <div class="messages-title">Voci dal mondo</div>
+          <div class="messages-title">${msgs.length} messaggi</div>
+        </div>
+        <div class="messages-list">${msgsHTML}</div>
+      ` : ''}
     `;
+  }
+
+  function updateConflict(id) {
+    renderConflict(id);
   }
 
   function selectSide(id, side) {
     selectedSide[id] = side;
     renderConflict(id);
+    setTimeout(() => {
+      document.getElementById(`form-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
   }
 
   function submitVote(id) {
-    const username = document.getElementById(`username-${id}`).value.trim() || 'Anonimo';
-    const country = document.getElementById(`country-${id}`).value.trim() || '';
-    const message = document.getElementById(`message-${id}`).value.trim();
-    if (!message) return alert('Scrivi un messaggio!');
+    const username = document.getElementById(`username-${id}`)?.value.trim() || 'Anonimo';
+    const country = document.getElementById(`country-${id}`)?.value.trim() || '';
+    const message = document.getElementById(`message-${id}`)?.value.trim();
+    if (!message) {
+      document.getElementById(`message-${id}`).style.borderColor = 'var(--red)';
+      return;
+    }
 
     socket.emit('vote', {
       conflictId: id,
@@ -143,6 +780,23 @@
     selectedSide[id] = null;
     renderConflict(id);
   }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Simulated online count
+  let fakeOnline = Math.floor(Math.random() * 40) + 10;
+  document.getElementById('g-users').textContent = fakeOnline;
+  setInterval(() => {
+    fakeOnline += Math.floor(Math.random() * 3) - 1;
+    fakeOnline = Math.max(5, fakeOnline);
+    document.getElementById('g-users').textContent = fakeOnline;
+  }, 4000);
 </script>
 
 </body>

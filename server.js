@@ -19,12 +19,21 @@ let conflicts = {
   "russia-ucraina": {
     title: "Russia vs Ucraina",
     sides: { a: "Russia", b: "Ucraina" },
+    flags: { a: "🇷🇺", b: "🇺🇦" },
     votes: { a: 0, b: 0 },
     messages: []
   },
   "israele-palestina": {
-    title: "Israele vs Palestina", 
+    title: "Israele vs Palestina",
     sides: { a: "Israele", b: "Palestina" },
+    flags: { a: "🇮🇱", b: "🇵🇸" },
+    votes: { a: 0, b: 0 },
+    messages: []
+  },
+  "usa-cina": {
+    title: "USA vs Cina",
+    sides: { a: "USA", b: "Cina" },
+    flags: { a: "🇺🇸", b: "🇨🇳" },
     votes: { a: 0, b: 0 },
     messages: []
   }
