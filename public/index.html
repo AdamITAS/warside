@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WarSide</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: white; min-height: 100vh; }
+    
+    header { text-align: center; padding: 40px 20px 20px; }
+    header h1 { font-size: 3rem; font-weight: 900; letter-spacing: 4px; }
+    header p { color: #888; margin-top: 8px; }
+
+    .conflicts { display: flex; flex-direction: column; gap: 40px; padding: 40px 20px; max-width: 900px; margin: 0 auto; }
+
+    .conflict-card { background: #111; border-radius: 16px; overflow: hidden; border: 1px solid #222; }
+    .conflict-title { text-align: center; padding: 20px; font-size: 1.2rem; font-weight: 700; border-bottom: 1px solid #222; }
+
+    .sides { display: flex; height: 120px; }
+    .side { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; cursor: pointer; transition: all 0.3s; }
+    .side-a { background: #1a0000; color: #ff4444; }
+    .side-b { background: #001a00; color: #44ff44; }
+    .side-a:hover { background: #ff4444; color: white; }
+    .side-b:hover { background: #44ff44; color: black; }
+
+    .bar-container { height: 8px; display: flex; }
+    .bar-a { background: #ff4444; transition: width 0.5s; }
+    .bar-b { background: #44ff44; transition: width 0.5s; }
+
+    .stats { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 0.85rem; color: #888; }
+
+    .vote-form { padding: 20px; border-top: 1px solid #222; display: none; flex-direction: column; gap: 10px; }
+    .vote-form.active { display: flex; }
+    .vote-form input, .vote-form textarea { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px; color: white; font-size: 0.9rem; }
+    .vote-form textarea { height: 80px; resize: none; }
+    .vote-form button { background: #ff4444; border: none; border-radius: 8px; padding: 12px; color: white; font-weight: 700; cursor: pointer; font-size: 1rem; }
+    .vote-form button:hover { opacity: 0.8; }
+
+    .messages { padding: 20px; border-top: 1px solid #222; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg { background: #1a1a1a; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; border-left: 3px solid #333; }
+    .msg.side-a { border-left-color: #ff4444; }
+    .msg.side-b { border-left-color: #44ff44; }
+    .msg .meta { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚔️ WARSIDE</h1>
+  <p>Scegli da che parte stai. In tempo reale.</p>
+</header>
+
+<div class="conflicts" id="conflicts"></div>
+
+<script>
+  const socket = io();
+  let selectedSide = {};
+  let conflicts = {};
+
+  socket.on('conflicts', (data) => {
+    conflicts = data;
+    renderAll();
+  });
+
+  socket.on('update', ({ conflictId, data }) => {
+    conflicts[conflictId] = data;
+    renderConflict(conflictId);
+  });
+
+  function renderAll() {
+    Object.keys(conflicts).forEach(renderConflict);
+  }
+
+  function renderConflict(id) {
+    const c = conflicts[id];
+    const total = c.votes.a + c.votes.b || 1;
+    const percA = Math.round((c.votes.a / total) * 100);
+    const percB = 100 - percA;
+
+    let el = document.getElementById(`conflict-${id}`);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'conflict-card';
+      el.id = `conflict-${id}`;
+      document.getElementById('conflicts').appendChild(el);
+    }
+
+    const msgs = c.messages.slice(-20).reverse().map(m => `
+      <div class="msg side-${m.side}">
+        <div class="meta">@${m.username} · ${m.country || ''}</div>
+        ${m.message}
+      </div>
+    `).join('');
+
+    const formVisible = selectedSide[id] ? 'active' : '';
+    const btnColor = selectedSide[id] === 'a' ? '#ff4444' : '#44ff44';
+
+    el.innerHTML = `
+      <div class="conflict-title">${c.title}</div>
+      <div class="sides">
+        <div class="side side-a" onclick="selectSide('${id}', 'a')">${c.sides.a}</div>
+        <div class="side side-b" onclick="selectSide('${id}', 'b')">${c.sides.b}</div>
+      </div>
+      <div class="bar-container">
+        <div class="bar-a" style="width:${percA}%"></div>
+        <div class="bar-b" style="width:${percB}%"></div>
+      </div>
+      <div class="stats">
+        <span>🔴 ${c.sides.a}: ${percA}% (${c.votes.a} voti)</span>
+        <span>🟢 ${c.sides.b}: ${percB}% (${c.votes.b} voti)</span>
+      </div>
+      <div class="vote-form ${formVisible}" id="form-${id}">
+        <input id="username-${id}" placeholder="Il tuo username TikTok (es. @mario)" maxlength="50" />
+        <input id="country-${id}" placeholder="Il tuo paese (es. Italia)" maxlength="50" />
+        <textarea id="message-${id}" placeholder="Perché stai da questa parte?"></textarea>
+        <button style="background:${btnColor}" onclick="submitVote('${id}')">Invia il tuo voto</button>
+      </div>
+      <div class="messages">${msgs}</div>
+    `;
+  }
+
+  function selectSide(id, side) {
+    selectedSide[id] = side;
+    renderConflict(id);
+  }
+
+  function submitVote(id) {
+    const username = document.getElementById(`username-${id}`).value.trim() || 'Anonimo';
+    const country = document.getElementById(`country-${id}`).value.trim() || '';
+    const message = document.getElementById(`message-${id}`).value.trim();
+    if (!message) return alert('Scrivi un messaggio!');
+
+    socket.emit('vote', {
+      conflictId: id,
+      side: selectedSide[id],
+      username,
+      message,
+      country
+    });
+
+    selectedSide[id] = null;
+    renderConflict(id);
+  }
+</script>
+
+</body>
+</html>
